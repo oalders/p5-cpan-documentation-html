@@ -1,0 +1,33 @@
+#!/usr/bin/env perl
+# PODNAME: cpan_documentation
+# ABSTRACT: Command line tool for using CPAN::Documentation
+
+$|=1;
+
+use App::CpanDocumentation;
+App::CpanDocumentation->new_with_options->run;
+
+__END__
+
+=head1 SYNPOSIS
+
+=head1 DESCRIPTION
+
+L<App::CpanDocumentation> for more informations.
+
+=head1 SEE ALSO
+
+=head1 SUPPORT
+
+IRC
+
+  Join #duckduckgo on irc.freenode.net. Highlight Getty for fast reaction :).
+
+Repository
+
+  http://github.com/Getty/p5-cpan-documentation
+  Pull request and additional contributors are welcome
+ 
+Issue Tracker
+
+  http://github.com/Getty/p5-cpan-documentation/issues
