@@ -114,6 +114,7 @@ sub run {
 	}
 	$cd->save_cache;
 	$cd->save_index;
+	exit 0;
 }
 
 1;

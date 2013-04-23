@@ -31,30 +31,34 @@ has url_prefix => (
 	builder => sub { '/perldoc/' },
 );
 
-has index_name => (
-	is => 'ro',
-	lazy => 1,
-	builder => sub { 'Modules Index' },
-);
-
 has template => (
 	is => 'ro',
 	lazy => 1,
 	builder => sub { <<__EOTEMPLATE__; },
-<div class="cdh-module">Sample::Module</div>
+<div class="cdh-title">Sample::Module</div>
 <div class="cdh-body">
 <div id="cdh-index">
+  <h1>Distribution Index</h1>
   <div class="cdh-index-list">
     <div class="cdh-index-dist">
       <div class="cdh-index-dist-name">MyDist-0.001.tar.gz</div>
       <div class="cdh-index-dist-documentation">
-        <div class="cdh-index-dist-name"><a>MyManual</a></div>
-      </div>
-      <div class="cdh-index-dist-modules">
-        <div class="cdh-index-dist-name"><a>MyModule</a></div>
+        <div>Documentation</div>
+        <div class="cdh-index-dist-documentation-list">
+          <div><a class="cdh-index-entry">MyManual</a></div>
+        </div>
       </div>
       <div class="cdh-index-dist-scripts">
-        <div class="cdh-index-dist-name"><a>a_script.pl</a></div>
+        <div>Scripts</div>
+        <div class="cdh-index-dist-scripts-list">
+          <div><a class="cdh-index-entry">a_script.pl</a></div>
+        </div>
+      </div>
+      <div class="cdh-index-dist-modules">
+        <div>Modules</div>
+        <div class="cdh-index-dist-modules-list">
+          <div><a class="cdh-index-entry">MyModule</a></div>
+        </div>
       </div>
     </div>
   </div>
@@ -125,12 +129,14 @@ sub save_index {
 	my $target = file($self->html,'index.html');
 	my $zoom = HTML::Zoom->from_html($self->template);
 
+	my @tm = ([1,'documentation'],[2,'scripts'],[0,'modules']);
+
 	my %dists;
 
 	for (keys %{$self->cache}) {
 		my $entry = $self->cache->{$_};
 		$dists{$entry->dist} = {} unless defined $dists{$entry->dist};
-		for ([0,'modules'],[1,'documentation'],[2,'scripts']) {
+		for (@tm) {
 			if ($entry->type == $_->[0]) {
 				$dists{$entry->dist}->{$_->[1]} = [] unless defined $dists{$entry->dist}->{$_->[1]};
 				push @{$dists{$entry->dist}->{$_->[1]}}, $entry;
@@ -138,9 +144,37 @@ sub save_index {
 		}
 	}
 
-	use DDP; p(%dists);
+	use DDP;
 
-	$target->spew($zoom->to_html);
+	$target->spew($zoom->select('.cdh-index-list')->repeat_content([ map {
+		my $dist = $_;
+		sub {
+			my $distzoom = $_;
+			my $entry_matrix = $dists{$dist};
+			$distzoom = $distzoom->select('.cdh-index-dist-name')->replace_content($dist);
+			for (@tm) {
+				my $typename = $_->[1];
+				if (defined $entry_matrix->{$typename}) {
+					my @entries = @{$entry_matrix->{$typename}};
+					$distzoom = $distzoom
+						->select('.cdh-index-dist-'.$typename.'-list')
+						->replace_content([ map {
+						my $entry = $_;
+						sub {
+							$_->select('.cdh-index-entry')->replace_content(sub {
+								$_->add_attribute( href => $self->url_prefix.$entry->module )
+								  ->then
+								  ->replace_content($entry->module);
+							});
+						}
+					} @entries ]);
+				} else {
+					$distzoom = $distzoom->select('.cdh-index-dist-'.$_->[1])->replace('');
+				}
+			}
+			return $distzoom;
+		};
+	} sort { $a cmp $b } keys %dists ])->to_html);
 }
 
 sub BUILD {
@@ -150,17 +184,18 @@ sub BUILD {
 
 sub add_dist {
 	my ( $self, $distfile ) = @_;
-	my $distname = file($distfile)->basename;
 	my $distdir = tempdir;
-	my $dist = Dist::Data->new( filename => $distfile, dir => $distdir )->extract_distribution;
+	my $distdata = Dist::Data->new( filename => $distfile, dir => $distdir );
+	$distdata->extract_distribution;
+	my $dist = $distdata->name;
 	if (-d dir($distdir,'lib')) {
-		$self->add_lib($distname, dir($distdir,'lib'));
+		$self->add_lib($dist, dir($distdir,'lib'));
 	}
 	if (-d dir($distdir,'bin')) {
-		$self->add_bin($distname, dir($distdir,'bin'));
+		$self->add_bin($dist, dir($distdir,'bin'));
 	}
 	if (-d dir($distdir,'script')) {
-		$self->add_bin($distname, dir($distdir,'script'));
+		$self->add_bin($dist, dir($distdir,'script'));
 	}
 }
 
@@ -176,7 +211,7 @@ sub get_entry {
 	return CPAN::Documentation::HTML::Entry->new(
 		pod => $pod,
 		module => $module,
-		type => 1,
+		type => $type,
 		dist => $dist,
 	);
 }
@@ -239,7 +274,7 @@ sub add_entry {
 	my $body = $tree->find_by_tag_name('body');
 	my $body_html = join('',map { $_->as_XML } $body->content_list);
 	my $zoom = HTML::Zoom->from_html($self->template)
-		->select('.cdh-module')->replace_content($entry->module)
+		->select('.cdh-title')->replace_content($entry->dist.' - '.$entry->module)
 		->select('.cdh-body')->replace_content(\$body_html);
 	$html_target->spew($zoom->to_html);
 	$self->cache->{$entry->module} = $entry;
