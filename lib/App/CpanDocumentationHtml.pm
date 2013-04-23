@@ -5,6 +5,7 @@ use MooX Options => [ flavour => [qw( pass_through )], protect_argv => 0 ];
 use CPAN::Documentation::HTML;
 use Cwd;
 use Path::Class;
+use namespace::autoclean;
 
 option root => (
 	is => 'ro',
@@ -28,13 +29,7 @@ option index => (
 	is => 'ro',
 );
 
-option js => (
-	is => 'ro',
-	predicate => 1,
-	format => 's',
-);
-
-option css => (
+option template => (
 	is => 'ro',
 	predicate => 1,
 	format => 's',
@@ -47,6 +42,18 @@ option bin => (
 );
 
 option lib => (
+	is => 'ro',
+	format => 's@',
+	builder => sub {[]},
+);
+
+option file => (
+	is => 'ro',
+	format => 's@',
+	builder => sub {[]},
+);
+
+option dir => (
 	is => 'ro',
 	format => 's@',
 	builder => sub {[]},
@@ -71,34 +78,42 @@ option default_libs => (
 
 sub run {
 	my ( $self ) = @_;
-	my $cd = CPAN::Documentation->new(
+	my $cd = CPAN::Documentation::HTML->new(
 		$self->has_root ? ( root => $self->root ) : (),
 		$self->has_url_prefix ? ( url_prefix => $self->url_prefix ) : (),
-		$self->has_js ? ( js => (scalar file($self->js)->slurp) ) : (),
-		$self->has_css ? ( css => (scalar file($self->css)->slurp) ) : (),
+		$self->has_template ? ( template => (scalar file($self->template)->slurp) ) : (),
 	);
+	for (@{$self->file}) {
+		$cd->add_dist(file($_)->absolute->stringify);
+	}
 	my $dist = $self->has_dist ? $self->dist : "imported_by_".file($0)->basename;
-	my $binlib;
 	for (@{$self->lib}) {
 		$cd->add_lib($dist,$_);
-		$binlib = 1;
 	}
 	for (@{$self->bin}) {
 		$cd->add_bin($dist,$_);
-		$binlib = 1;
 	}
-	if (!$binlib || ($binlib && scalar @ARGV)) {
-		for my $dir (scalar @ARGV ? @ARGV : $self->has_root ? (getcwd) : (die __PACKAGE__." needs root or a source directory")) {
-			for (@{$self->default_libs}) {
-				my $lib_dir = dir($dir,$_);
-				$cd->add_lib($dist,$lib_dir) if -d $lib_dir;
-			}
-			for (@{$self->default_bins}) {
-				my $bin_dir = dir($dir,$_);
-				$cd->add_bin($dist,$bin_dir) if -d $bin_dir;
+	if (@ARGV) {
+		for (@ARGV) {
+			if (-d $_) {
+				my $dir = dir($_);
+				for (@{$self->default_libs}) {
+					my $lib_dir = dir($dir,$_);
+					$cd->add_lib($dist,$lib_dir) if -d $lib_dir;
+				}
+				for (@{$self->default_bins}) {
+					my $bin_dir = dir($dir,$_);
+					$cd->add_bin($dist,$bin_dir) if -d $bin_dir;
+				}
+			} elsif (-f $_) {
+				$cd->add_dist(file($_)->absolute->stringify);
+			} else {
+				die __PACKAGE__.": no idea what todo with '".$_."'";
 			}
 		}
 	}
+	$cd->save_cache;
+	$cd->save_index;
 }
 
 1;

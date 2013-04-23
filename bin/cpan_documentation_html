@@ -4,8 +4,8 @@
 
 $|=1;
 
-use App::CpanDocumentation;
-App::CpanDocumentation->new_with_options->run;
+use App::CpanDocumentationHtml;
+App::CpanDocumentationHtml->new_with_options->run;
 
 __END__
 
