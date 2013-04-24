@@ -35,28 +35,34 @@ option template => (
 	format => 's',
 );
 
+option asset => (
+	is => 'ro',
+	format => 's%',
+	predicate => 1,
+);
+
 option bin => (
 	is => 'ro',
 	format => 's@',
-	builder => sub {[]},
+	predicate => 1,
 );
 
 option lib => (
 	is => 'ro',
 	format => 's@',
-	builder => sub {[]},
+	predicate => 1,
 );
 
 option file => (
 	is => 'ro',
 	format => 's@',
-	builder => sub {[]},
+	predicate => 1,
 );
 
 option dir => (
 	is => 'ro',
 	format => 's@',
-	builder => sub {[]},
+	predicate => 1,
 );
 
 option default_bins => (
@@ -82,16 +88,23 @@ sub run {
 		$self->has_root ? ( root => $self->root ) : (),
 		$self->has_url_prefix ? ( url_prefix => $self->url_prefix ) : (),
 		$self->has_template ? ( template => (scalar file($self->template)->slurp) ) : (),
+		$self->has_asset ? ( assets => $self->asset ) : (),
 	);
-	for (@{$self->file}) {
-		$cd->add_dist(file($_)->absolute->stringify);
+	if ($self->has_file) {
+		for (@{$self->file}) {
+			$cd->add_dist(file($_)->absolute->stringify);
+		}
 	}
 	my $dist = $self->has_dist ? $self->dist : "imported_by_".file($0)->basename;
-	for (@{$self->lib}) {
-		$cd->add_lib($dist,$_);
+	if ($self->has_lib) {
+		for (@{$self->lib}) {
+			$cd->add_lib($dist,$_);
+		}
 	}
-	for (@{$self->bin}) {
-		$cd->add_bin($dist,$_);
+	if ($self->has_bin) {
+		for (@{$self->bin}) {
+			$cd->add_bin($dist,$_);
+		}
 	}
 	if (@ARGV) {
 		for (@ARGV) {

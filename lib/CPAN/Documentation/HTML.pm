@@ -38,7 +38,6 @@ has assets => (
 	builder => sub {{
 		"duckpan.css" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.css'),
 		"duckpan.png" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.png'),
-		"PIE.htc" => file(dist_dir('CPAN-Documentation-HTML'),'PIE.htc'),
 	}},
 );
 
