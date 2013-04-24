@@ -12,6 +12,7 @@ use Dist::Data;
 use File::Temp qw( tempdir );
 use HTML::Zoom;
 use HTML::TreeBuilder;
+use File::ShareDir::ProjectDistDir;
 
 has root => (
 	is => 'ro',
@@ -31,40 +32,20 @@ has url_prefix => (
 	builder => sub { '/perldoc/' },
 );
 
+has assets => (
+	is => 'ro',
+	lazy => 1,
+	builder => sub {{
+		"duckpan.css" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.css'),
+		"duckpan.png" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.png'),
+		"PIE.htc" => file(dist_dir('CPAN-Documentation-HTML'),'PIE.htc'),
+	}},
+);
+
 has template => (
 	is => 'ro',
 	lazy => 1,
-	builder => sub { <<__EOTEMPLATE__; },
-<div class="cdh-title">Sample::Module</div>
-<div class="cdh-body">
-<div id="cdh-index">
-  <h1>Distribution Index</h1>
-  <div class="cdh-index-list">
-    <div class="cdh-index-dist">
-      <div class="cdh-index-dist-name">MyDist-0.001.tar.gz</div>
-      <div class="cdh-index-dist-documentation">
-        <div>Documentation</div>
-        <div class="cdh-index-dist-documentation-list">
-          <div><a class="cdh-index-entry">MyManual</a></div>
-        </div>
-      </div>
-      <div class="cdh-index-dist-scripts">
-        <div>Scripts</div>
-        <div class="cdh-index-dist-scripts-list">
-          <div><a class="cdh-index-entry">a_script.pl</a></div>
-        </div>
-      </div>
-      <div class="cdh-index-dist-modules">
-        <div>Modules</div>
-        <div class="cdh-index-dist-modules-list">
-          <div><a class="cdh-index-entry">MyModule</a></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div> 
-</div>
-__EOTEMPLATE__
+	builder => sub { file(dist_dir('CPAN-Documentation-HTML'),'duckpan.html')->slurp },
 );
 
 has cache_file => (
@@ -124,10 +105,29 @@ sub save_cache {
 	file($self->cache_file)->spew($self->_json->encode(\%cache));
 }
 
+sub replace_assets {
+	my ( $self, $zoom ) = @_;
+	for (keys %{$self->assets}) {
+		my $file = $_;
+		my $id_file = $file;
+		$id_file =~ s/\./-/g;
+		for (qw( src href )) {
+			$zoom = $zoom->select('#cdh-'.$_.'-'.$id_file)->add_to_attribute( $_ => $self->url_prefix.$file );
+		}
+	}
+	return $zoom;
+}
+
 sub save_index {
 	my ( $self ) = @_;
 	my $target = file($self->html,'index.html');
 	my $zoom = HTML::Zoom->from_html($self->template);
+
+	$zoom = $self->replace_assets($zoom);
+
+	for (keys %{$self->assets}) {
+		copy($self->assets->{$_},file($self->html,$_));
+	}
 
 	my @tm = ([1,'documentation'],[2,'scripts'],[0,'modules']);
 
@@ -144,8 +144,6 @@ sub save_index {
 		}
 	}
 
-	use DDP;
-
 	$target->spew($zoom->select('.cdh-index-list')->repeat_content([ map {
 		my $dist = $_;
 		sub {
@@ -157,19 +155,19 @@ sub save_index {
 				if (defined $entry_matrix->{$typename}) {
 					my @entries = @{$entry_matrix->{$typename}};
 					$distzoom = $distzoom
-						->select('.cdh-index-dist-'.$typename.'-list')
-						->replace_content([ map {
+					->select('.cdh-index-dist-'.$typename.'-list')
+					->repeat_content([ map {
 						my $entry = $_;
+						return unless $entry->pod;
 						sub {
-							$_->select('.cdh-index-entry')->replace_content(sub {
-								$_->add_attribute( href => $self->url_prefix.$entry->module )
-								  ->then
-								  ->replace_content($entry->module);
-							});
+							$_->select('.cdh-index-entry')
+								->add_to_attribute( href => $self->url_prefix.$entry->module )
+								->then
+								->replace_content($entry->module)
 						}
 					} @entries ]);
 				} else {
-					$distzoom = $distzoom->select('.cdh-index-dist-'.$_->[1])->replace('');
+					$distzoom = $distzoom->select('.cdh-index-dist-'.$typename)->replace('');
 				}
 			}
 			return $distzoom;
@@ -276,6 +274,7 @@ sub add_entry {
 	my $zoom = HTML::Zoom->from_html($self->template)
 		->select('.cdh-title')->replace_content($entry->dist.' - '.$entry->module)
 		->select('.cdh-body')->replace_content(\$body_html);
+	$zoom = $self->replace_assets($zoom);
 	$html_target->spew($zoom->to_html);
 	$self->cache->{$entry->module} = $entry;
 }
