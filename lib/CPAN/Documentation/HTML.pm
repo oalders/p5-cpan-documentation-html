@@ -36,15 +36,15 @@ has assets => (
 	is => 'ro',
 	lazy => 1,
 	builder => sub {{
-		"duckpan.css" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.css'),
-		"duckpan.png" => file(dist_dir('CPAN-Documentation-HTML'),'duckpan.png'),
+		"default.css" => file(dist_dir('CPAN-Documentation-HTML'),'default.css'),
+		"default.png" => file(dist_dir('CPAN-Documentation-HTML'),'default.png'),
 	}},
 );
 
 has template => (
 	is => 'ro',
 	lazy => 1,
-	builder => sub { file(dist_dir('CPAN-Documentation-HTML'),'duckpan.html')->slurp },
+	builder => sub { file(dist_dir('CPAN-Documentation-HTML'),'default.html')->slurp },
 );
 
 has cache_file => (
