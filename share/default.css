@@ -530,6 +530,14 @@ Buttons
 .duckpan h1 + pre, .duckpan h2 + pre, .duckpan h3+ pre {
 	margin-top: 10px;
 }
+
+.duckpan ul, .duckpan ol { margin-left: 1.25em; }
+	.duckpan ul li p { margin-bottom: 0; }
+	.duckpan #AUTHORS + ul li {
+		list-style: none;
+		margin-bottom: 4px;
+	}
+
 	
 .duckpan #index {
 	float: right;
