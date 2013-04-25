@@ -1,4 +1,5 @@
 package CPAN::Documentation::HTML::Entry;
+# ABSTRACT: An entry (a module, binary or documentation) in the HTML
 
 use Moo;
 

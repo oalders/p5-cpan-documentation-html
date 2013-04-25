@@ -132,6 +132,10 @@ sub run {
 
 1;
 
+=head1 DESCRIPTION
+
+See L<cpan_documentation_html>.
+
 =head1 SUPPORT
 
 IRC
@@ -140,9 +144,9 @@ IRC
 
 Repository
 
-  http://github.com/Getty/p5-cpan-documentation
+  http://github.com/Getty/p5-cpan-documentation-html
   Pull request and additional contributors are welcome
  
 Issue Tracker
 
-  http://github.com/Getty/p5-cpan-documentation/issues
+  http://github.com/Getty/p5-cpan-documentation-html/issues
