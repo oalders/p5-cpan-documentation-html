@@ -105,15 +105,17 @@ sub save_cache {
 }
 
 sub replace_assets {
-	my ( $self, $zoom ) = @_;
+	my ( $self, $zoom, $prefix ) = @_;
+	$prefix = '' unless $prefix;
 	for (keys %{$self->assets}) {
 		my $file = $_;
 		my $id_file = $file;
 		$id_file =~ s/\./-/g;
 		for (qw( src href )) {
-			$zoom = $zoom->select('#cdh-'.$_.'-'.$id_file)->add_to_attribute( $_ => $self->url_prefix.$file );
+			$zoom = $zoom->select('#cdh-'.$_.'-'.$id_file)->add_to_attribute( $_ => $prefix.$file );
 		}
 	}
+	$zoom = $zoom->select('#cdh-index-link')->add_to_attribute( href => $prefix.'index.html' );
 	return $zoom;
 }
 
@@ -132,7 +134,7 @@ sub save_index {
 
 	my %dists;
 
-	for (keys %{$self->cache}) {
+	for (sort { $a cmp $b } keys %{$self->cache}) {
 		my $entry = $self->cache->{$_};
 		$dists{$entry->dist} = {} unless defined $dists{$entry->dist};
 		for (@tm) {
@@ -160,7 +162,7 @@ sub save_index {
 						return unless $entry->pod;
 						sub {
 							$_->select('.cdh-index-entry')
-								->add_to_attribute( href => $self->url_prefix.$entry->module )
+								->add_to_attribute( href => './'.$entry->module.'/index.html' )
 								->then
 								->replace_content($entry->module)
 						}
@@ -236,6 +238,7 @@ sub add_lib {
 	}
 	for my $file (@pms) {
 		my @parts = $file->relative(dir($path))->components;
+		shift @parts if $parts[0] eq '.';
 		my $filename = pop @parts;
 		$filename =~ s!\.pm$!!;
 		my $module = join('::',@parts,$filename);
@@ -273,7 +276,7 @@ sub add_entry {
 	my $zoom = HTML::Zoom->from_html($self->template)
 		->select('.cdh-title')->replace_content($entry->dist.' - '.$entry->module)
 		->select('.cdh-body')->replace_content(\$body_html);
-	$zoom = $self->replace_assets($zoom);
+	$zoom = $self->replace_assets($zoom,'../');
 	$html_target->spew($zoom->to_html);
 	$self->cache->{$entry->module} = $entry;
 }
