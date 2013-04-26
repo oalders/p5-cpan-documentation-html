@@ -1,5 +1,5 @@
 package CPAN::Documentation::HTML;
-# ABSTRACT: Generate files for documentations of CPAN Distributions or simple packages
+# ABSTRACT: Generate files for documentation of CPAN Distributions or simple packages
 
 use Moo;
 use Cwd;
